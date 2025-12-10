@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>BagTrace Display</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>🛬 Příletová hala - Výdej zavazadel</h1>
+    
+    <div style="display:flex; justify-content: center;">
+        <div id="belt-1" class="belt">
+            <h2>Pás č. 1</h2>
+            <div id="list-1"></div>
+        </div>
+        <div id="belt-2" class="belt">
+            <h2>Pás č. 2</h2>
+            <div id="list-2"></div>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket(`ws://${location.host}`);
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log("Data ze serveru:", data);
+
+            if (data.type === 'NEW_BAG') {
+                // Vytvoření elementu kufru
+                const bagDiv = document.createElement('div');
+                bagDiv.className = 'bag';
+                bagDiv.innerHTML = `🧳 ${data.text} <br> <small>${data.weight} kg</small>`;
+
+                // Přidání do správného pásu
+                const listId = `list-${data.belt}`;
+                document.getElementById(listId).prepend(bagDiv);
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+@alphaUrl = http://localhost:3000
+@betaUrl = http://localhost:8080
+
+### 1. Check-in nového kufru (Alpha Server)
+# @name createBag
+POST {{alphaUrl}}/bag
+Content-Type: application/json
+
+{
+    "owner": "Vojta Guláš",
+    "flight": "OK123",
+    "weight": 18.5
+}
+
+### 2. Změna stavu na UNLOADED (Automaticky použije ID z kroku 1)
+# VS Code si sám sáhne pro ID z předchozí odpovědi.
+# Nemusíš nic kopírovat!
+PATCH {{alphaUrl}}/bag/{{createBag.response.body.id}}/status
+Content-Type: application/json
+
+{
+    "status": "UNLOADED"
+}
+
+### 3. DEBUG - Přímý test Bety
+POST {{betaUrl}}/webhook-receiver
+Content-Type: application/json
+
+{
+    "event": "bag_arrived",
+    "data": {
+        "id": 999,
+        "owner": "Testovací Pasažér",
+        "flight": "US999",
+        "weight": 25,
+        "status": "UNLOADED"
+    }
+}

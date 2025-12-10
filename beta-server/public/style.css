@@ -1,0 +1,32 @@
+body {
+    font-family: sans-serif;
+    background: #222;
+    color: white;
+    text-align: center;
+}
+
+.belt {
+    border: 2px solid #555;
+    margin: 20px;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.bag {
+    background: #e67e22;
+    padding: 10px;
+    margin: 5px;
+    border-radius: 5px;
+    color: black;
+    font-weight: bold;
+    animation: pop 0.5s ease;
+}
+
+@keyframes pop {
+    from {
+        transform: scale(0);
+    }
+    to {
+        transform: scale(1);
+    }
+}
