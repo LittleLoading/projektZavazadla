@@ -5,16 +5,12 @@ const WebSocket = require('ws');
 const app = express();
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public')); 
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-wss.on('connection', ws => {
-  console.log('WS: Klient (prohlížeč) připojen');
-  ws.send(JSON.stringify({ message: "Vítejte v systému sledování zavazadel" }));
-});
-
+// --- 1. WEBSOCKET LOGIKA ---
 const broadcast = (data) => {
     wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -23,25 +19,35 @@ const broadcast = (data) => {
     });
 };
 
+// --- 2. WEBHOOK RECEIVER (Příjem od Alphy) ---
 app.post('/webhook-receiver', (req, res) => {
-    const receivedData = req.body;
-    console.log('📨 Přijat Webhook od Alphy:', receivedData);
+    const { event, data } = req.body;
+    console.log(`📨 Přijat Webhook: ${event} pro kufr ${data.id}`);
 
-    const bag = receivedData.data;
+    let wsMessage = {};
 
+    if (event === 'bag_loaded') {
+        // Scénář 1: Kufr je v letadle (na cestě)
+        wsMessage = { 
+            type: 'PLANE_LOADED', 
+            bag: data 
+        };
+    } else if (event === 'bag_arrived') {
+        // Scénář 2: Kufr je vyložen -> Musíme určit pás
+        // Business Logic: Lety začínající na "OK" jdou na Pás 1, ostatní na Pás 2
+        const assignedBelt = data.flight.startsWith('OK') ? 1 : 2;
+        
+        wsMessage = { 
+            type: 'BELT_ARRIVAL', 
+            bag: data, 
+            belt: assignedBelt 
+        };
+    }
 
-    const assignedBelt = bag.flight.startsWith('OK') ? 1 : 2;
+    // Pošleme info všem připojeným klientům (prohlížečům)
+    broadcast(wsMessage);
 
-    const displayMessage = {
-        type: 'NEW_BAG',
-        text: `Kufr pro ${bag.owner} (Let ${bag.flight}) dorazil!`,
-        belt: assignedBelt,
-        weight: bag.weight
-    };
-
-    broadcast(displayMessage);
-
-    res.sendStatus(200); // Odpovíme Alphě, že jsme to přijali
+    res.sendStatus(200); // Odpovíme Alphě "OK"
 });
 
 server.listen(8080, '0.0.0.0', () => {

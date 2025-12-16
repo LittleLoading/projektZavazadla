@@ -1,46 +1,42 @@
 const express = require('express');
-const axios = require('axios'); 
+const axios = require('axios');
 const app = express();
 
 app.use(express.json());
 
-// zatim jen tyto limity, mohou se přidat další
-const FLIGHT_LIMITS = {
-    'OK123': 100, 
-    'US999': 500
+// --- 1. DATABÁZE A KONFIGURACE ---
+const FLIGHT_LIMITS = { 
+    'OK123': 100,  // Malé letadlo
+    'US999': 5000  // Velké letadlo
 };
-
 
 let bags = []; 
 
-// 1. Endpoint
+// --- 2. ENDPOINTY ---
+
+// A) Vytvoření kufru (Check-in)
 app.post('/bag', (req, res) => {
     const { owner, flight, weight } = req.body;
 
- 
+    // Business Logic: Kontrola přetížení
     const currentWeight = bags
         .filter(b => b.flight === flight)
         .reduce((sum, b) => sum + b.weight, 0);
-// kdyby let nebyl v limitu, vezmeme defaultni hodnotu 2000
+
     const maxWeight = FLIGHT_LIMITS[flight] || 2000;
 
     if (currentWeight + weight > maxWeight) {
-        return res.status(409).json({ 
-            error: "Letadlo je přetížené! Nelze odbavit.", 
-            current: currentWeight, 
-            limit: maxWeight 
-        });
+        return res.status(409).json({ error: "Letadlo je přetížené!" });
     }
 
-    // Pokud OK, uložíme
     const newBag = { id: Date.now(), owner, flight, weight, status: 'CHECKED_IN' };
     bags.push(newBag);
     
-    console.log(`✅ Odbaven kufr pro ${owner} na let ${flight}. Váha: ${weight}kg`);
+    console.log(`✅ Odbaven kufr: ${owner}, let ${flight}, váha ${weight}kg`);
     res.status(201).json(newBag);
 });
 
-// 2. Endpoint
+// B) Změna stavu kufru (Spouští Webhook)
 app.patch('/bag/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
@@ -48,27 +44,38 @@ app.patch('/bag/:id/status', async (req, res) => {
     const bagIndex = bags.findIndex(b => b.id == id);
     if (bagIndex === -1) return res.status(404).send("Kufr nenalezen");
 
+    // Aktualizace v DB
     bags[bagIndex].status = status;
     console.log(`🔄 Změna stavu kufru ${id} na: ${status}`);
 
-    // POKUD JE STAV 'UNLOADED', POŠLEME WEBHOOK NA BETU
-    if (status === 'UNLOADED') {
+    // LOGIKA WEBHOOKŮ: Kdy volat Betu?
+    // 1. Když se nakládá do letadla (LOADED)
+    // 2. Když se vykládá na pás (UNLOADED)
+    if (status === 'LOADED' || status === 'UNLOADED') {
+        const eventType = status === 'LOADED' ? 'bag_loaded' : 'bag_arrived';
+        
         try {
-            console.log("📡 Odesílám Webhook na Betu...");
+            console.log(`📡 Odesílám Webhook (${eventType})...`);
             
- 
-            await axios.post('http://localhost:8080/webhook-receiver', {
-                event: 'bag_arrived',
+            await axios.post('http://127.0.0.1:8080/webhook-receiver', {
+                event: eventType,
                 timestamp: new Date().toISOString(),
                 data: bags[bagIndex]
             });
-            console.log("✅ Webhook úspěšně doručen.");
+            console.log("✅ Webhook doručen.");
         } catch (error) {
-            console.error("❌ Chyba při odesílání webhooku:", error.message);
+            console.error("❌ Chyba webhooku (Zkontroluj, zda běží Beta):", error.message);
         }
     }
 
     res.json(bags[bagIndex]);
+});
+
+// C) Interakce (Beta nám říká "Vyzvednuto")
+app.post('/bag/collected', (req, res) => {
+    const { bagId } = req.body;
+    console.log(`🎉 Pasažér si vyzvedl kufr ${bagId}. Archivuji...`);
+    res.sendStatus(200);
 });
 
 app.listen(3000, () => {

@@ -1,32 +1,68 @@
-body {
-    font-family: sans-serif;
-    background: #222;
-    color: white;
-    text-align: center;
-}
+  /* --- CSS STYLY --- */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #1e1e1e; 
+            color: #ecf0f1; 
+            text-align: center; 
+            margin: 0; padding: 20px;
+        }
 
-.belt {
-    border: 2px solid #555;
-    margin: 20px;
-    padding: 20px;
-    border-radius: 10px;
-}
+        h1 { margin-bottom: 30px; letter-spacing: 2px; }
+        h2 { color: #bdc3c7; border-bottom: 1px solid #555; padding-bottom: 10px;}
 
-.bag {
-    background: #e67e22;
-    padding: 10px;
-    margin: 5px;
-    border-radius: 5px;
-    color: black;
-    font-weight: bold;
-    animation: pop 0.5s ease;
-}
+        /* Kontejner pro letadla */
+        .plane-container { 
+            border: 2px dashed #3498db; 
+            margin: 0 auto 40px auto; 
+            padding: 20px; 
+            background: #2c3e50; 
+            min-height: 120px; 
+            width: 80%;
+            border-radius: 15px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
 
-@keyframes pop {
-    from {
-        transform: scale(0);
-    }
-    to {
-        transform: scale(1);
-    }
-}
+        /* Kontejner pro pásy */
+        .belts-wrapper { display: flex; justify-content: center; gap: 20px; }
+        .belt { 
+            border: 4px solid #444; 
+            background: #252525;
+            width: 40%; 
+            padding: 20px; 
+            border-radius: 15px; 
+            min-height: 300px;
+        }
+
+        /* Vzhled kufru */
+        .bag { 
+            background: #e67e22; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            color: #1e1e1e; 
+            font-weight: bold; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.5s ease;
+            animation: slideIn 0.5s ease-out;
+            position: relative;
+        }
+
+        /* Speciální stavy kufru */
+        .bag.in-plane { background: #3498db; color: white; margin: 5px; } /* Modrá v letadle */
+        .bag.ok { background: #2ecc71 !important; color: white; border: 2px solid white; } /* Zelená */
+        .bag.missed { background: #e74c3c !important; color: white; border: 2px solid #c0392b; } /* Červená */
+
+        .bag small { display: block; font-weight: normal; margin-top: 5px; opacity: 0.8; }
+        .timer { display: block; margin-top: 8px; font-size: 0.9em; font-family: monospace; }
+        
+        button { 
+            cursor: pointer; background: #fff; border: none; 
+            padding: 5px 10px; border-radius: 4px; margin-top: 8px; font-weight: bold;
+        }
+        button:hover { background: #eee; }
+
+        @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { opacity: 1; transform: translateY(0); } }

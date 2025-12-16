@@ -36,3 +36,26 @@ Content-Type: application/json
         "status": "UNLOADED"
     }
 }
+
+@alphaUrl = http://localhost:3000
+
+### 1. Check-in (Vytvoření)
+# @name createBag
+POST {{alphaUrl}}/bag
+Content-Type: application/json
+
+{ "owner": "Janad Rddychlá", "flight": "OK123", "weight": 12 }
+
+### 2. Naložení do letadla (Nový krok!)
+# Teď se kufr objeví v horním modrém kontejneru "Letadla na cestě"
+PATCH {{alphaUrl}}/bag/{{createBag.response.body.id}}/status
+Content-Type: application/json
+
+{ "status": "LOADED" }
+
+### 3. Vyložení na pás
+# Kufr zmizí z letadla, skočí na Pás 1 a začne odpočet
+PATCH {{alphaUrl}}/bag/{{createBag.response.body.id}}/status
+Content-Type: application/json
+
+{ "status": "UNLOADED" }
