@@ -4,20 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BagTrace Dashboard</title>
-
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <h1>✈️ BagTrace Live Monitor</h1>
+    <h1>BagTrace</h1>
 
     <div class="plane-container">
-        <h3 style="width: 100%; margin-top: 0;">Letadla ve vzduchu (Naloženo)</h3>
+        <h3 style="width: 100%; margin-top: 0;">Letadla a jejich kufry</h3>
         <div id="plane-list"></div>
     </div>
     
     <div class="belts-wrapper">
         <div id="belt-1" class="belt">
-            <h2>Pás č. 1 (EU / Czech)</h2>
+            <h2>Pás č. 1 (Czech)</h2>
             <div id="list-1"></div>
         </div>
         <div id="belt-2" class="belt">
@@ -28,11 +28,12 @@
 
     <script>
         const ws = new WebSocket(`ws://${location.host}`);
+        const activeTimers = {};    
 
-        // NASTAVENÍ ČASOVAČE (Pro demo dej 20 sekund = 20000)
+        // NASTAVENÍ ČASOVAČE
         const TIMEOUT_MS = 20000; 
 
-        ws.onopen = () => console.log("✅ Připojeno k Beta Serveru");
+        ws.onopen = () => console.log("Připojeno k Beta");
 
         ws.onmessage = (event) => {
             const msg = JSON.parse(event.data);
@@ -44,76 +45,73 @@
                 moveBagToBelt(msg.bag, msg.belt);
             }
         };
+        function getBagHTML(bag) {
+            return `
+                 <b>${bag.owner}</b><br>
+                <small>Let: ${bag.flight}</small>
+                <span class="timer">Čeká na vyzvednutí...</span>
+                <button onclick="pickupBag('${bag.id}')">Vyzvednout</button>
+            `;
+        }
 
-        // --- FUNKCE PRO UI ---
-
-        // 1. Vytvoří kufr v horním modrém boxu
-        function createBagInPlane(bag) {
-            // Zamezení duplicitám
+        // Vytvoří kufr 
+       function createBagInPlane(bag) {
             if (document.getElementById(`bag-${bag.id}`)) return;
 
             const el = document.createElement('div');
             el.id = `bag-${bag.id}`;
             el.className = 'bag in-plane';
-            el.innerHTML = `✈️ ${bag.flight}<br><small>${bag.owner}</small>`;
+            el.innerHTML = ` ${bag.flight}<br><small>${bag.owner}</small>`;
+            
             document.getElementById('plane-list').appendChild(el);
         }
 
-        // 2. Přesune kufr na pás a spustí odpočet
-        function moveBagToBelt(bag, beltNum) {
+       function moveBagToBelt(bag, beltNum) {
             let el = document.getElementById(`bag-${bag.id}`);
             
-            // Pokud kufr nebyl v letadle (např. po refresh stránky), vytvoříme nový
             if (!el) {
                 el = document.createElement('div');
                 el.id = `bag-${bag.id}`;
             }
 
-            // Nastavení vzhledu pro pás
-            el.className = 'bag'; // Reset tříd
-            el.innerHTML = `
-                🧳 <b>${bag.owner}</b><br>
-                <small>Let: ${bag.flight}</small>
-                <span class="timer">Čeká na vyzvednutí...</span>
-                <button onclick="pickupBag('${bag.id}')">Vyzvednout</button>
-            `;
+            el.className = 'bag'; 
+            
+            el.innerHTML = getBagHTML(bag);
 
-            // Přidání do správného pásu (na začátek seznamu)
             const beltList = document.getElementById(`list-${beltNum}`);
             beltList.prepend(el);
 
-            // Spuštění časovače
-            const timerId = setTimeout(() => {
-                // Čas vypršel -> Červená
+            activeTimers[bag.id] = setTimeout(() => {
                 el.classList.add('missed');
-                el.querySelector('.timer').innerText = "⚠️ NEVYZVEDNUTO (Time out)";
+                el.querySelector('.timer').innerText = " NEVYZVEDNUTO";
                 const btn = el.querySelector('button');
                 if(btn) btn.remove();
+                
+                delete activeTimers[bag.id];
             }, TIMEOUT_MS);
-
-            // Uložíme ID timeru do elementu, abychom ho mohli zrušit při kliknutí
-            el.dataset.timerId = timerId;
         }
 
-        // 3. Funkce tlačítka "Vyzvednout"
-        window.pickupBag = (id) => {
+        // Vyzvednout
+       window.pickupBag = (id) => {
             const el = document.getElementById(`bag-${id}`);
             if (!el) return;
 
-            // Zastavit odpočet
-            clearTimeout(el.dataset.timerId);
+            if (activeTimers[id]) {
+                clearTimeout(activeTimers[id]);
+                delete activeTimers[id];
+            }
 
-            // Změnit na Zelenou
             el.classList.add('ok');
-            el.querySelector('.timer').innerText = "✅ Vyzvednuto";
-            el.querySelector('button').remove(); // Odstranit tlačítko
+            el.querySelector('.timer').innerText = "Vyzvednuto";
+            
+            const btn = el.querySelector('button');
+            if(btn) btn.remove(); 
 
-            // (Volitelné) Odeslat info zpět na server
             fetch('/bag/collected', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ bagId: id })
-            }).catch(err => console.log("Chyba při odesílání potvrzení"));
+            }).catch(err => console.log("Chyba při odesílání potvrzení na server"));
         };
     </script>
 </body>
