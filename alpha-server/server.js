@@ -2,7 +2,11 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const path = require('path');
 app.use(express.json());
+const swaggerDocument = YAML.load(path.join(__dirname, './swagger.yaml'));
 
 const FLIGHT_LIMITS = {
     'OK123': 100,
@@ -10,6 +14,8 @@ const FLIGHT_LIMITS = {
 };
 
 let bags = [];
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // ENDPOINTY 
 
