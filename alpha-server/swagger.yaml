@@ -1,0 +1,150 @@
+openapi: 3.0.0
+info:
+  title: Airport Baggage System API
+  description: >
+    API dokumentace pro semestrální projekt distribuovaného systému odbavení zavazadel.
+    Obsahuje endpointy pro **Alpha Server** (Logika odbavení) a **Beta Server** (Webhook Receiver).
+  version: 1.0.0
+  contact:
+    name: Skupina Alpha & Beta
+servers:
+  - url: http://localhost:3000
+    description: Alpha Server (Main REST API)
+  - url: http://localhost:8080
+    description: Beta Server (Webhook Receiver & WebSocket)
+
+components:
+  schemas:
+    Bag:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 170291029384
+          description: Unikátní časové ID kufru
+        owner:
+          type: string
+          example: "Jan Novák"
+        flight:
+          type: string
+          example: "OK123"
+        weight:
+          type: number
+          example: 20.5
+        status:
+          type: string
+          enum: [CHECKED_IN, LOADED, UNLOADED, COLLECTED]
+          example: "CHECKED_IN"
+    
+    BagInput:
+      type: object
+      required:
+        - owner
+        - flight
+        - weight
+      properties:
+        owner:
+          type: string
+          description: Jméno vlastníka kufru
+        flight:
+          type: string
+          description: Kód letu (validní kódy ovlivňují logiku)
+          example: "OK123"
+        weight:
+          type: number
+          description: Váha v kg
+          example: 15
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Letadlo je přetížené!"
+
+tags:
+  - name: Check-in Process
+    description: Základní operace s kufry na Alpha Serveru
+
+
+paths:
+  /bag:
+    post:
+      summary: Odbavení nového zavazadla
+      description: >
+        Vytvoří nový záznam o kufru. Obsahuje netriviální validaci celkové hmotnosti letadla.
+        Pokud je limit letu překročen, vrací 409 Conflict.
+      tags:
+        - Check-in Process
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BagInput'
+      responses:
+        '201':
+          description: Kufr úspěšně odbaven
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bag'
+        '409':
+          description: Business Logic Error - Letadlo je přetížené
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bag/{id}/status:
+    patch:
+      summary: Změna stavu zavazadla
+      description: >
+        Aktualizuje stav kufru (např. naloženo, vyloženo). 
+        **Trigger:** Změna na 'LOADED' nebo 'UNLOADED' automaticky spouští Webhook na Beta server.
+      tags:
+        - Check-in Process
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID kufru
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [LOADED, UNLOADED]
+                  example: "LOADED"
+      responses:
+        '200':
+          description: Stav aktualizován
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bag'
+        '404':
+          description: Kufr nenalezen
+
+  /bag/collected:
+    post:
+      summary: Potvrzení vyzvednutí pasažérem
+      tags:
+        - Check-in Process
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bagId:
+                  type: integer
+      responses:
+        '200':
+          description: Vyzvednutí potvrzeno
